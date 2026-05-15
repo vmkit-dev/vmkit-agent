@@ -14,6 +14,7 @@ import (
 	"github.com/vmkit-dev/vmkit-agent/internal/cleanup"
 	"github.com/vmkit-dev/vmkit-agent/internal/config"
 	"github.com/vmkit-dev/vmkit-agent/internal/daemon"
+	"github.com/vmkit-dev/vmkit-agent/internal/daemon/handlers"
 	"github.com/vmkit-dev/vmkit-agent/internal/deploy"
 	"github.com/vmkit-dev/vmkit-agent/internal/diagnose"
 	"github.com/vmkit-dev/vmkit-agent/internal/destroy"
@@ -132,6 +133,7 @@ func handleDaemon() {
 		SessionPath:   sessionFile,
 		LogLevel:      level,
 	})
+	handlers.RegisterAll(d)
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
