@@ -1,0 +1,11 @@
+{
+  "instance_id": "test-instance-001",
+  "subdomain": "test-app",
+  "base_dir": "/opt/supabase",
+  "current_version": "1.23.0",
+  "target_version": "1.24.0",
+  "backup_before_upgrade": true,
+  "rollback_on_failure": true,
+  "backup_upload_url": "",
+  "storage_upload_url": ""
+}

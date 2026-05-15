@@ -1,0 +1,56 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Harden Response",
+  "description": "Response from Go agent harden command",
+  "type": "object",
+  "required": ["success"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether hardening succeeded"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Hardening steps executed",
+      "items": {
+        "$ref": "#/definitions/step_result"
+      }
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    },
+    "failed_step": {
+      "type": "string",
+      "description": "Step that failed (present on failure)"
+    },
+    "rollback_applied": {
+      "type": "boolean",
+      "description": "Whether rollback was applied after failure"
+    },
+    "rollback_details": {
+      "type": "string",
+      "description": "Details about the rollback"
+    }
+  },
+  "definitions": {
+    "step_result": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "failed", "skipped", "in_progress"] },
+        "message": { "type": "string" },
+        "start_time": { "type": "string" },
+        "end_time": { "type": "string" },
+        "duration": { "type": "string" }
+      }
+    }
+  },
+  "if": {
+    "properties": { "success": { "const": false } }
+  },
+  "then": {
+    "required": ["failed_step", "error_message"]
+  }
+}

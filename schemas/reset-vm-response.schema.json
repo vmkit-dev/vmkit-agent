@@ -1,0 +1,51 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reset VM Response",
+  "description": "Response from Go agent reset-vm command",
+  "type": "object",
+  "required": ["success", "steps"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether reset succeeded"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Reset steps executed",
+      "items": { "$ref": "#/definitions/step_result" }
+    },
+    "purged_instances": {
+      "type": "array",
+      "description": "Subdomains under base_dir that were torn down",
+      "items": { "type": "string" }
+    },
+    "removed_ufw_rules": {
+      "type": "array",
+      "description": "UFW rule numbers deleted (as numbered at parse time)",
+      "items": { "type": "integer" }
+    },
+    "removed_config_files": {
+      "type": "array",
+      "description": "Paths of stray config files removed",
+      "items": { "type": "string" }
+    },
+    "error_message": { "type": "string" },
+    "failed_step": { "type": "string" }
+  },
+  "definitions": {
+    "step_result": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name":       { "type": "string" },
+        "status":     { "type": "string", "enum": ["completed", "failed", "skipped", "in_progress"] },
+        "message":    { "type": "string" },
+        "start_time": { "type": "string" },
+        "end_time":   { "type": "string" },
+        "duration":   { "type": "string" }
+      }
+    }
+  },
+  "if": { "properties": { "success": { "const": false } } },
+  "then": { "required": ["failed_step", "error_message"] }
+}

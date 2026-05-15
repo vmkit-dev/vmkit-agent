@@ -1,0 +1,178 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Deploy Configuration",
+  "description": "Configuration for deploying a Supabase instance via Go agent",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "domain",
+    "studio_domain",
+    "base_dir",
+    "kong_port",
+    "postgres_port",
+    "studio_port",
+    "postgres_password",
+    "jwt_secret",
+    "publishable_key",
+    "secret_key",
+    "is_first_instance",
+    "enable_tls",
+    "vm_user",
+    "environment"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain (lowercase alphanumeric with hyphens)"
+    },
+    "domain": {
+      "type": "string",
+      "format": "hostname",
+      "description": "Full domain for API access"
+    },
+    "studio_domain": {
+      "type": "string",
+      "format": "hostname",
+      "description": "Full domain for Studio access"
+    },
+    "kong_port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535,
+      "description": "Kong API gateway port"
+    },
+    "postgres_port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535,
+      "description": "PostgreSQL port"
+    },
+    "studio_port": {
+      "type": "integer",
+      "minimum": 1024,
+      "maximum": 65535,
+      "description": "Supabase Studio port"
+    },
+    "postgres_password": {
+      "type": "string",
+      "minLength": 8,
+      "description": "PostgreSQL password"
+    },
+    "jwt_secret": {
+      "type": "string",
+      "minLength": 32,
+      "description": "JWT signing secret"
+    },
+    "publishable_key": {
+      "type": "string",
+      "description": "Supabase publishable (anon) key"
+    },
+    "secret_key": {
+      "type": "string",
+      "description": "Supabase service role key"
+    },
+    "pgsodium_key": {
+      "type": "string",
+      "description": "pgsodium encryption key (optional)"
+    },
+    "dashboard_username": {
+      "type": "string",
+      "description": "Kong basic-auth username for Studio dashboard (optional, default: supabase)"
+    },
+    "dashboard_password": {
+      "type": "string",
+      "description": "Kong basic-auth password for Studio dashboard (optional)"
+    },
+    "is_first_instance": {
+      "type": "boolean",
+      "description": "Whether this is the first instance on the VM"
+    },
+    "enable_tls": {
+      "type": "boolean",
+      "description": "Whether to provision Let's Encrypt TLS certificate"
+    },
+    "vm_user": {
+      "type": "string",
+      "description": "VM SSH username"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "cert_pem": {
+      "type": "string",
+      "description": "TLS certificate PEM for Postgres SSL (optional)"
+    },
+    "key_pem": {
+      "type": "string",
+      "description": "TLS private key PEM for Postgres SSL (optional)"
+    },
+    "postgres_image": {
+      "type": "string",
+      "description": "Postgres image ref (e.g. supabase/postgres:15.8.1.020). Used by agent to detect postgres uid/gid for SSL cert ownership."
+    },
+    "compose_content": {
+      "type": "string",
+      "description": "Pre-rendered docker-compose.yml from backend (optional, falls back to agent generation)"
+    },
+    "env_content": {
+      "type": "string",
+      "description": "Pre-rendered .env file from backend (optional, falls back to agent generation)"
+    },
+    "kong_content": {
+      "type": "string",
+      "description": "Pre-rendered kong.yml from backend (optional, falls back to agent generation)"
+    },
+    "services": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[a-z][a-z0-9_-]*$"
+      },
+      "description": "Expected container-name suffixes to health-check. Each is prefixed with `{subdomain}-` (e.g. `acme-db`). v1.26.04 ships all 13 upstream services. Optional for legacy versions which fall back to the hardcoded triad [postgres, kong, studio]."
+    },
+    "postgres_container": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_-]*$",
+      "description": "Container-name suffix hosting postgres. Defaults to `postgres` (legacy 1.24.0 compose) and is `db` for upstream v1.26.04 compose."
+    },
+    "init_sql_files": {
+      "type": "object",
+      "description": "Map of filename -> content for docker-entrypoint-initdb.d scripts. v1.26.04 ships 7 upstream files. Empty for legacy versions (agent falls back to its bundled roles.sh).",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "volume_config_files": {
+      "type": "object",
+      "description": "Map of relative path (under instance dir, e.g. `volumes/logs/vector.yml`) -> file content. Used for upstream compose bind-mounts that are not init SQL.",
+      "propertyNames": {
+        "pattern": "^volumes/[A-Za-z0-9_./-]+$"
+      },
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "supabase_extras": {
+      "type": "object",
+      "description": "Bundled secrets fetched from Vault (RS256 keys, logflare tokens, supavisor tenant id, etc.) for v1.26.04+. Substituted into compose/env by the backend; agent currently treats this as an opaque pass-through.",
+      "additionalProperties": {
+        "type": "string"
+      }
+    },
+    "environment": {
+      "type": "object",
+      "description": "Environment variables for the instance",
+      "additionalProperties": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

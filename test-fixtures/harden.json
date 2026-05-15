@@ -1,0 +1,11 @@
+{
+  "vm_user": "supabyoi",
+  "ssh_port": 2222,
+  "ssh_public_key": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIGqB3EOLDvdAnyXCPxkmiw9uffvgQLmQtoJ/n3Pe8w3r lakshminp@lnp.local",
+  "extra_authorized_keys": [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIAIFfAIkr9EGV6ARIXOtkT5OzYR6IasqL1gGAidz0ROY supabyoi-e2e"
+  ],
+  "enable_firewall": true,
+  "enable_fail2ban": true,
+  "enable_auto_updates": true
+}

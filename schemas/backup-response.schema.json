@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Backup Response",
+  "description": "Response from Go agent backup command",
+  "type": "object",
+  "required": ["success", "instance_id"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether backup succeeded"
+    },
+    "backup_id": {
+      "type": "string",
+      "description": "Backup identifier"
+    },
+    "instance_id": {
+      "type": "string",
+      "description": "Instance identifier"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Backup steps executed",
+      "items": {
+        "$ref": "#/definitions/step_result"
+      }
+    },
+    "metadata": {
+      "$ref": "#/definitions/backup_metadata"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    },
+    "failed_step": {
+      "type": "string",
+      "description": "Step that failed (present on failure)"
+    }
+  },
+  "definitions": {
+    "step_result": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "failed", "skipped", "in_progress"] },
+        "message": { "type": "string" },
+        "start_time": { "type": "string" },
+        "end_time": { "type": "string" },
+        "duration": { "type": "string" }
+      }
+    },
+    "backup_metadata": {
+      "type": "object",
+      "properties": {
+        "backup_id": { "type": "string" },
+        "instance_id": { "type": "string" },
+        "subdomain": { "type": "string" },
+        "supabase_version": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "size_bytes": { "type": "integer" },
+        "checksum": { "type": "string" },
+        "storage_size_bytes": { "type": "integer" },
+        "storage_checksum": { "type": "string" },
+        "status": { "type": "string" }
+      }
+    }
+  },
+  "if": {
+    "properties": { "success": { "const": false } }
+  },
+  "then": {
+    "required": ["failed_step", "error_message"]
+  }
+}

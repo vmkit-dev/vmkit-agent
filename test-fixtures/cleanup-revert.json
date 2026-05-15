@@ -1,0 +1,7 @@
+{
+  "level": "revert",
+  "pre_hardening_ssh_port": 22,
+  "pre_hardening_ssh_user": "root",
+  "restore_password_auth": true,
+  "disable_firewall": true
+}

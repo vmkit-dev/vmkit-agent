@@ -1,0 +1,8 @@
+{
+  "instance_id": "test-instance-001",
+  "subdomain": "test-app",
+  "base_dir": "/opt/supabase",
+  "upload_url": "",
+  "storage_upload_url": "",
+  "include_storage": false
+}

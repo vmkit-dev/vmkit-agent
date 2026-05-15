@@ -1,0 +1,6 @@
+{
+  "instance_id": "test-instance-001",
+  "subdomain": "test-app",
+  "base_dir": "/opt/supabase",
+  "postgres_port": 15432
+}

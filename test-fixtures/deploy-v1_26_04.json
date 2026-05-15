@@ -1,0 +1,43 @@
+{
+  "instance_id": "test-instance-v1-26-04",
+  "subdomain": "acme",
+  "domain": "acme.supabyoi.com",
+  "studio_domain": "studio-acme.supabyoi.com",
+  "base_dir": "/opt/supabase",
+  "enable_tls": false,
+  "vm_user": "supabyoi",
+  "kong_port": 8000,
+  "postgres_port": 5432,
+  "studio_port": 3000,
+  "postgres_password": "test-postgres-password-change-me",
+  "jwt_secret": "super-secret-jwt-token-with-at-least-32-characters-long",
+  "publishable_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
+  "secret_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU",
+  "dashboard_username": "supabase",
+  "dashboard_password": "test-dashboard-password",
+  "is_first_instance": true,
+  "compose_content": "name: supabase\nservices:\n  db:\n    container_name: acme-db\n    image: supabase/postgres:15.8.1.020\n",
+  "env_content": "POSTGRES_PASSWORD=test-postgres-password-change-me\nJWT_SECRET=super-secret-jwt-token-with-at-least-32-characters-long\n",
+  "postgres_image": "supabase/postgres:15.8.1.020",
+  "services": ["analytics", "auth", "db", "functions", "imgproxy", "kong", "meta", "realtime", "rest", "storage", "studio", "supavisor", "vector"],
+  "postgres_container": "db",
+  "init_sql_files": {
+    "_supabase.sql": "-- upstream _supabase bootstrap (stub for fixture)\nCREATE DATABASE _supabase;\n",
+    "jwt.sql": "-- upstream jwt (stub)\n",
+    "logs.sql": "-- upstream logs (stub)\n",
+    "pooler.sql": "-- upstream pooler (stub)\n",
+    "realtime.sql": "-- upstream realtime (stub)\n",
+    "roles.sql": "-- upstream roles (stub)\n",
+    "webhooks.sql": "-- upstream webhooks (stub)\n"
+  },
+  "volume_config_files": {
+    "volumes/logs/vector.yml": "api:\n  enabled: true\n  address: 0.0.0.0:9001\n",
+    "volumes/pooler/pooler.exs": "{:ok, _} = Application.ensure_all_started(:supavisor)\n"
+  },
+  "supabase_extras": {
+    "LOGFLARE_PUBLIC_ACCESS_TOKEN": "test-logflare-public",
+    "LOGFLARE_PRIVATE_ACCESS_TOKEN": "test-logflare-private",
+    "POOLER_TENANT_ID": "acme"
+  },
+  "environment": {}
+}

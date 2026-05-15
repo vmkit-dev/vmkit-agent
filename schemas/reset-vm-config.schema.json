@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Reset VM Configuration",
+  "description": "Configuration for agent reset-vm command — restore a shared VM to its just-hardened baseline without re-running the full harden flow.",
+  "type": "object",
+  "properties": {
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for deployed instances (default: /opt/supabase). Every subdir is torn down."
+    },
+    "allowed_ports": {
+      "type": "array",
+      "description": "UFW ports to keep after reset. Rules for any other port are deleted. Defaults to [22, 80, 443] when omitted — callers should include the live SSH port if harden moved it off :22.",
+      "items": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 65535
+      },
+      "uniqueItems": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cleanup Response",
+  "description": "Response from Go agent cleanup command",
+  "type": "object",
+  "required": ["success", "level"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether cleanup succeeded"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["minimal", "full", "revert"],
+      "description": "Cleanup level that was performed"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Cleanup steps executed",
+      "items": {
+        "$ref": "#/definitions/step_result"
+      }
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    },
+    "failed_step": {
+      "type": "string",
+      "description": "Step that failed (present on failure)"
+    },
+    "restored_ssh_port": {
+      "type": "integer",
+      "description": "SSH port after cleanup"
+    },
+    "restored_ssh_user": {
+      "type": "string",
+      "description": "SSH user after cleanup"
+    }
+  },
+  "definitions": {
+    "step_result": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "failed", "skipped", "in_progress"] },
+        "message": { "type": "string" },
+        "start_time": { "type": "string" },
+        "end_time": { "type": "string" },
+        "duration": { "type": "string" }
+      }
+    }
+  },
+  "if": {
+    "properties": { "success": { "const": false } }
+  },
+  "then": {
+    "required": ["failed_step", "error_message"]
+  }
+}

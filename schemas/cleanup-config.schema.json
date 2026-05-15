@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Cleanup Configuration",
+  "description": "Configuration for VM cleanup via Go agent",
+  "type": "object",
+  "required": [
+    "level",
+    "restore_password_auth",
+    "disable_firewall"
+  ],
+  "properties": {
+    "level": {
+      "type": "string",
+      "enum": ["minimal", "full", "revert"],
+      "description": "Cleanup level"
+    },
+    "pre_hardening_ssh_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Original SSH port (for revert)"
+    },
+    "pre_hardening_ssh_user": {
+      "type": "string",
+      "description": "Original SSH user (for revert)"
+    },
+    "restore_password_auth": {
+      "type": "boolean",
+      "description": "Re-enable password auth (for revert)"
+    },
+    "disable_firewall": {
+      "type": "boolean",
+      "description": "Disable UFW firewall (for revert)"
+    }
+  },
+  "additionalProperties": false
+}

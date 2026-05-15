@@ -1,0 +1,53 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Verify Backup Response",
+  "description": "Response from Go agent verify command",
+  "type": "object",
+  "required": ["success", "backup_id", "verified_at", "overall_status", "duration"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether verification succeeded"
+    },
+    "backup_id": {
+      "type": "string",
+      "description": "Backup identifier"
+    },
+    "verified_at": {
+      "type": "string",
+      "description": "Verification timestamp"
+    },
+    "checks": {
+      "type": "array",
+      "description": "Verification checks performed",
+      "items": {
+        "$ref": "#/definitions/verification_check"
+      }
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["verified", "failed", "partial"],
+      "description": "Overall verification status"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    },
+    "duration": {
+      "type": "string",
+      "description": "Total verification duration"
+    }
+  },
+  "definitions": {
+    "verification_check": {
+      "type": "object",
+      "required": ["name", "status", "message"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["passed", "failed", "skipped"] },
+        "message": { "type": "string" },
+        "duration": { "type": "string" }
+      }
+    }
+  }
+}

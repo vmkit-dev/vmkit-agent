@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Status Response",
+  "description": "Response from Go agent status command",
+  "type": "object",
+  "required": ["instance_id", "state", "last_checked"],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Instance identifier"
+    },
+    "state": {
+      "type": "string",
+      "enum": ["running", "stopped", "error"],
+      "description": "Current instance state"
+    },
+    "containers": {
+      "type": "array",
+      "description": "Container statuses",
+      "items": {
+        "$ref": "#/definitions/container_status"
+      }
+    },
+    "health_checks": {
+      "type": "object",
+      "description": "Health check results by service name",
+      "additionalProperties": {
+        "type": "boolean"
+      }
+    },
+    "last_checked": {
+      "type": "string",
+      "description": "Timestamp of last check"
+    }
+  },
+  "definitions": {
+    "container_status": {
+      "type": "object",
+      "required": ["name", "state"],
+      "properties": {
+        "name": { "type": "string" },
+        "state": { "type": "string" },
+        "health": { "type": "string" },
+        "uptime": { "type": "string" }
+      }
+    }
+  }
+}

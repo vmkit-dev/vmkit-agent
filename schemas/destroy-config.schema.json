@@ -1,0 +1,33 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Destroy Configuration",
+  "description": "Configuration for destroying a Supabase instance via Go agent",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "base_dir"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "postgres_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Optional. If set, agent removes every UFW ALLOW rule for this port on destroy. Omit or send 0 to skip firewall cleanup (pre-0.12.2 behavior)."
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,20 @@
+{
+  "instance_id": "test-instance-001",
+  "subdomain": "test-app",
+  "domain": "test-app.supabyoi.com",
+  "studio_domain": "studio-test-app.supabyoi.com",
+  "base_dir": "/opt/supabase",
+  "enable_tls": false,
+  "vm_user": "supabyoi",
+  "kong_port": 8000,
+  "postgres_port": 5432,
+  "studio_port": 3000,
+  "postgres_password": "test-postgres-password-change-me",
+  "jwt_secret": "super-secret-jwt-token-with-at-least-32-characters-long",
+  "publishable_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0",
+  "secret_key": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU",
+  "dashboard_username": "supabase",
+  "dashboard_password": "test-dashboard-password",
+  "is_first_instance": true,
+  "environment": {}
+}

@@ -1,0 +1,52 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Harden Configuration",
+  "description": "Configuration for VM hardening via Go agent",
+  "type": "object",
+  "required": [
+    "vm_user",
+    "ssh_port",
+    "ssh_public_key",
+    "enable_firewall",
+    "enable_fail2ban",
+    "enable_auto_updates"
+  ],
+  "properties": {
+    "vm_user": {
+      "type": "string",
+      "description": "User to create (default: supabyoi)"
+    },
+    "ssh_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "New SSH port (default: 2222)"
+    },
+    "ssh_public_key": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Primary SSH public key for the new user"
+    },
+    "extra_authorized_keys": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Extra pubkeys appended to authorized_keys (e.g. operator debug keys)"
+    },
+    "enable_firewall": {
+      "type": "boolean",
+      "description": "Enable UFW firewall"
+    },
+    "enable_fail2ban": {
+      "type": "boolean",
+      "description": "Enable fail2ban"
+    },
+    "enable_auto_updates": {
+      "type": "boolean",
+      "description": "Enable automatic security updates"
+    }
+  },
+  "additionalProperties": false
+}

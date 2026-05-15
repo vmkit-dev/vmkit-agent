@@ -1,0 +1,8 @@
+{
+  "backup_id": "backup-test-001",
+  "download_url": "",
+  "expected_checksum": "",
+  "deep_verify": false,
+  "subdomain": "test-app",
+  "base_dir": "/opt/supabase"
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Upgrade Response",
+  "description": "Response from Go agent upgrade command",
+  "type": "object",
+  "required": ["success", "instance_id", "rollback_applied"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether upgrade succeeded"
+    },
+    "instance_id": {
+      "type": "string",
+      "description": "Instance identifier"
+    },
+    "upgraded_from": {
+      "type": "string",
+      "description": "Previous version"
+    },
+    "upgraded_to": {
+      "type": "string",
+      "description": "New version"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Upgrade steps executed",
+      "items": {
+        "$ref": "#/definitions/step_result"
+      }
+    },
+    "rollback_applied": {
+      "type": "boolean",
+      "description": "Whether rollback was applied"
+    },
+    "backup_id": {
+      "type": "string",
+      "description": "Backup ID if backup was created"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    },
+    "failed_step": {
+      "type": "string",
+      "description": "Step that failed (present on failure)"
+    }
+  },
+  "definitions": {
+    "step_result": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["completed", "failed", "skipped", "in_progress"] },
+        "message": { "type": "string" },
+        "start_time": { "type": "string" },
+        "end_time": { "type": "string" },
+        "duration": { "type": "string" }
+      }
+    }
+  },
+  "if": {
+    "properties": { "success": { "const": false } }
+  },
+  "then": {
+    "required": ["failed_step", "error_message"]
+  }
+}

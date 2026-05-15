@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Upgrade Configuration",
+  "description": "Configuration for upgrading a Supabase instance via Go agent",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "base_dir",
+    "current_version",
+    "target_version",
+    "backup_before_upgrade",
+    "rollback_on_failure"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "current_version": {
+      "type": "string",
+      "description": "Current Supabase version"
+    },
+    "target_version": {
+      "type": "string",
+      "description": "Target Supabase version"
+    },
+    "backup_before_upgrade": {
+      "type": "boolean",
+      "description": "Create backup before upgrade"
+    },
+    "rollback_on_failure": {
+      "type": "boolean",
+      "description": "Rollback to previous version on failure"
+    },
+    "backup_upload_url": {
+      "type": "string",
+      "description": "Pre-signed URL for backup upload"
+    },
+    "storage_upload_url": {
+      "type": "string",
+      "description": "Pre-signed URL for storage backup"
+    },
+    "compose_content": {
+      "type": "string",
+      "description": "Pre-rendered docker-compose.yml from backend (optional, falls back to version registry)"
+    },
+    "env_content": {
+      "type": "string",
+      "description": "Pre-rendered .env file from backend (optional)"
+    }
+  },
+  "additionalProperties": false
+}

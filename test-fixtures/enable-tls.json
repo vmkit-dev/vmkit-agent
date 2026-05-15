@@ -1,0 +1,11 @@
+{
+  "instance_id": "test-instance-123",
+  "subdomain": "myapp",
+  "domain": "myapp.supabyoi.com",
+  "studio_domain": "studio-myapp.supabyoi.com",
+  "base_dir": "/opt/supabase",
+  "cert_pem": "-----BEGIN CERTIFICATE-----\nMIIBkTCB+wIJALRiMLAh... (sample)\n-----END CERTIFICATE-----",
+  "key_pem": "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA0Z3VS5... (sample)\n-----END RSA PRIVATE KEY-----",
+  "dashboard_username": "supabase",
+  "dashboard_password": "sample-dashboard-password"
+}

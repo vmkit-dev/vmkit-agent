@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Enable TLS Configuration",
+  "description": "Configuration for enabling TLS on an instance via Go agent using Cloudflare Origin CA certificates",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "domain",
+    "cert_pem",
+    "key_pem"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain"
+    },
+    "domain": {
+      "type": "string",
+      "format": "hostname",
+      "description": "Full domain for API access"
+    },
+    "studio_domain": {
+      "type": "string",
+      "format": "hostname",
+      "description": "Full domain for Studio access"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "cert_pem": {
+      "type": "string",
+      "description": "PEM-encoded TLS certificate from Cloudflare Origin CA"
+    },
+    "key_pem": {
+      "type": "string",
+      "description": "PEM-encoded private key for TLS certificate"
+    },
+    "kong_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Kong HTTP port (default: 8000)"
+    },
+    "studio_port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Studio port (default: 3000)"
+    },
+    "dashboard_username": {
+      "type": "string",
+      "description": "Studio basic-auth username — required so the agent regenerates htpasswd alongside the HTTPS server block (bead supabyoi-f8w0)"
+    },
+    "dashboard_password": {
+      "type": "string",
+      "description": "Studio basic-auth password — required so the agent regenerates htpasswd alongside the HTTPS server block (bead supabyoi-f8w0)"
+    }
+  },
+  "additionalProperties": false
+}

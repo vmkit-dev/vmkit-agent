@@ -1,0 +1,5 @@
+{
+  "port": 15432,
+  "protocol": "tcp",
+  "source_cidrs": ["0.0.0.0/0"]
+}

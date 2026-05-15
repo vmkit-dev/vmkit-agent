@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Backup Configuration",
+  "description": "Configuration for backing up a Supabase instance via Go agent",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "base_dir",
+    "upload_url",
+    "storage_upload_url",
+    "include_storage"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "upload_url": {
+      "type": "string",
+      "description": "Pre-signed URL for database backup upload"
+    },
+    "storage_upload_url": {
+      "type": "string",
+      "description": "Pre-signed URL for storage backup upload"
+    },
+    "include_storage": {
+      "type": "boolean",
+      "description": "Whether to backup storage files"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,40 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Verify Backup Configuration",
+  "description": "Configuration for verifying a backup via Go agent",
+  "type": "object",
+  "required": [
+    "backup_id",
+    "download_url",
+    "expected_checksum",
+    "deep_verify"
+  ],
+  "properties": {
+    "backup_id": {
+      "type": "string",
+      "description": "Backup identifier"
+    },
+    "download_url": {
+      "type": "string",
+      "description": "Pre-signed URL to download backup"
+    },
+    "expected_checksum": {
+      "type": "string",
+      "description": "Expected SHA256 checksum"
+    },
+    "deep_verify": {
+      "type": "boolean",
+      "description": "Perform deep verification (test restore)"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Required for deep verify"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory (default: /opt/supabase)"
+    }
+  },
+  "additionalProperties": false
+}

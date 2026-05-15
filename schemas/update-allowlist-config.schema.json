@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UpdateAllowlistConfig",
+  "type": "object",
+  "required": ["port", "source_cidrs"],
+  "properties": {
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "protocol": {
+      "type": "string",
+      "enum": ["tcp", "udp"],
+      "default": "tcp"
+    },
+    "source_cidrs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "maxItems": 64,
+      "description": "Full desired allowlist. UFW rules for the port are reconciled to match exactly. Empty list means allow-from-anywhere."
+    }
+  },
+  "additionalProperties": false
+}

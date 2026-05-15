@@ -1,0 +1,27 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "OpenPortConfig",
+  "type": "object",
+  "required": ["port"],
+  "properties": {
+    "port": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 65535,
+      "description": "Port number to open in firewall"
+    },
+    "protocol": {
+      "type": "string",
+      "enum": ["tcp", "udp"],
+      "default": "tcp",
+      "description": "Protocol (tcp or udp)"
+    },
+    "source_cidrs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "maxItems": 64,
+      "description": "Optional source CIDR allowlist. Empty or missing means allow from anywhere (pre-0.12.0 behavior)."
+    }
+  },
+  "additionalProperties": false
+}

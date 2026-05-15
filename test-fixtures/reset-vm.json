@@ -1,0 +1,4 @@
+{
+  "base_dir": "/opt/supabase",
+  "allowed_ports": [2222, 80, 443]
+}

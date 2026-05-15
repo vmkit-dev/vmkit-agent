@@ -1,0 +1,50 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Restore Configuration",
+  "description": "Configuration for restoring a Supabase instance via Go agent",
+  "type": "object",
+  "required": [
+    "instance_id",
+    "subdomain",
+    "base_dir",
+    "download_url",
+    "stop_instance",
+    "verify_checksum"
+  ],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Unique instance identifier"
+    },
+    "subdomain": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Instance subdomain"
+    },
+    "base_dir": {
+      "type": "string",
+      "description": "Base directory for instances (default: /opt/supabase)"
+    },
+    "download_url": {
+      "type": "string",
+      "description": "Pre-signed URL for database backup download"
+    },
+    "storage_download_url": {
+      "type": "string",
+      "description": "Pre-signed URL for storage backup download"
+    },
+    "stop_instance": {
+      "type": "boolean",
+      "description": "Whether to stop instance before restore"
+    },
+    "verify_checksum": {
+      "type": "boolean",
+      "description": "Whether to verify backup integrity"
+    },
+    "expected_checksum": {
+      "type": "string",
+      "description": "Expected checksum for verification"
+    }
+  },
+  "additionalProperties": false
+}

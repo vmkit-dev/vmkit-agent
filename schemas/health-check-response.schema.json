@@ -1,0 +1,107 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Health Check Response",
+  "description": "Response from Go agent health-check command",
+  "type": "object",
+  "required": ["instance_id", "overall_status", "timestamp", "duration", "level"],
+  "properties": {
+    "instance_id": {
+      "type": "string",
+      "description": "Instance identifier"
+    },
+    "overall_status": {
+      "type": "string",
+      "enum": ["healthy", "degraded", "unhealthy"],
+      "description": "Overall health status"
+    },
+    "timestamp": {
+      "type": "string",
+      "description": "Check timestamp"
+    },
+    "containers": {
+      "type": "array",
+      "description": "Container statuses",
+      "items": {
+        "$ref": "#/definitions/container_status"
+      }
+    },
+    "services": {
+      "type": "array",
+      "description": "Service diagnostics",
+      "items": {
+        "$ref": "#/definitions/service_diagnostics"
+      }
+    },
+    "checks": {
+      "type": "array",
+      "description": "Health checks performed",
+      "items": {
+        "$ref": "#/definitions/health_check"
+      }
+    },
+    "duration": {
+      "type": "string",
+      "description": "Total check duration"
+    },
+    "level": {
+      "type": "string",
+      "enum": ["basic", "deep", "metrics", "services", "full"],
+      "description": "Level of checks performed"
+    }
+  },
+  "definitions": {
+    "container_status": {
+      "type": "object",
+      "required": ["name", "status", "restarts"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["running", "stopped", "error"] },
+        "health": { "type": "string", "enum": ["healthy", "unhealthy", "starting"] },
+        "uptime": { "type": "string" },
+        "restarts": { "type": "integer" },
+        "metrics": {
+          "$ref": "#/definitions/container_metrics"
+        }
+      }
+    },
+    "container_metrics": {
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "cpu_percent": { "type": "number" },
+        "memory_mb": { "type": "integer" },
+        "memory_percent": { "type": "number" },
+        "disk_mb": { "type": "integer" },
+        "network_rx_mb": { "type": "number" },
+        "network_tx_mb": { "type": "number" }
+      }
+    },
+    "service_diagnostics": {
+      "type": "object",
+      "required": ["name", "status"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["healthy", "degraded", "unhealthy"] },
+        "response_time_ms": { "type": "integer" },
+        "details": {
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        },
+        "errors": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      }
+    },
+    "health_check": {
+      "type": "object",
+      "required": ["name", "status", "message", "duration_ms"],
+      "properties": {
+        "name": { "type": "string" },
+        "status": { "type": "string", "enum": ["passed", "failed", "warning"] },
+        "message": { "type": "string" },
+        "duration_ms": { "type": "integer" }
+      }
+    }
+  }
+}

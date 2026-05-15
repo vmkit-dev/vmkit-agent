@@ -1,0 +1,26 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UpdateAllowlistResult",
+  "type": "object",
+  "required": ["success", "port", "protocol"],
+  "properties": {
+    "success": {"type": "boolean"},
+    "port": {"type": "integer", "minimum": 1, "maximum": 65535},
+    "protocol": {"type": "string", "enum": ["tcp", "udp"]},
+    "allowed_cidrs": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Source CIDRs currently allowed on the port after reconcile."
+    },
+    "added_cidrs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "removed_cidrs": {
+      "type": "array",
+      "items": {"type": "string"}
+    },
+    "error_message": {"type": "string"}
+  },
+  "additionalProperties": false
+}

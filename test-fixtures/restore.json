@@ -1,0 +1,9 @@
+{
+  "instance_id": "test-instance-001",
+  "subdomain": "test-app",
+  "base_dir": "/opt/supabase",
+  "download_url": "",
+  "stop_instance": true,
+  "verify_checksum": false,
+  "expected_checksum": ""
+}

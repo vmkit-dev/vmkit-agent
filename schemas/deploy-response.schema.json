@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Deploy Response",
+  "description": "Response from Go agent deploy command",
+  "type": "object",
+  "required": ["success"],
+  "properties": {
+    "success": {
+      "type": "boolean",
+      "description": "Whether deployment succeeded"
+    },
+    "instance_id": {
+      "type": "string",
+      "description": "Instance identifier (present on success)"
+    },
+    "steps": {
+      "type": "array",
+      "description": "Deployment steps executed",
+      "items": {
+        "type": "object",
+        "required": ["name", "status"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "enum": [
+              "docker_install",
+              "nginx_install",
+              "directory_and_config_setup",
+              "docker_compose",
+              "health_check",
+              "nginx_config",
+              "tls_cert"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": ["completed", "failed", "skipped"]
+          },
+          "message": {
+            "type": "string",
+            "description": "Additional step information"
+          },
+          "duration": {
+            "type": "string",
+            "description": "Step execution duration"
+          }
+        }
+      }
+    },
+    "failed_step": {
+      "type": "string",
+      "description": "Step that failed (present on failure)"
+    },
+    "error_message": {
+      "type": "string",
+      "description": "Error message (present on failure)"
+    }
+  },
+  "if": {
+    "properties": {
+      "success": { "const": false }
+    }
+  },
+  "then": {
+    "required": ["failed_step", "error_message"]
+  }
+}
