@@ -1,14 +1,19 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/vmkit-dev/vmkit-agent/internal/backup"
 	"github.com/vmkit-dev/vmkit-agent/internal/cleanup"
 	"github.com/vmkit-dev/vmkit-agent/internal/config"
+	"github.com/vmkit-dev/vmkit-agent/internal/daemon"
 	"github.com/vmkit-dev/vmkit-agent/internal/deploy"
 	"github.com/vmkit-dev/vmkit-agent/internal/diagnose"
 	"github.com/vmkit-dev/vmkit-agent/internal/destroy"
@@ -36,6 +41,8 @@ func main() {
 	switch command {
 	case "version":
 		fmt.Printf("vmkit-agent version %s\n", Version)
+	case "daemon":
+		handleDaemon()
 	case "deploy":
 		handleDeploy()
 	case "harden":
@@ -81,14 +88,74 @@ func main() {
 	}
 }
 
+func handleDaemon() {
+	var gatewayURL, instanceID, tokenFile, sessionFile, logLevel string
+
+	fs := flag.NewFlagSet("daemon", flag.ExitOnError)
+	fs.StringVar(&gatewayURL, "gateway-url", "", "WebSocket URL of the vmkit gateway (e.g. wss://gateway.vmkit.dev/agent)")
+	fs.StringVar(&instanceID, "instance-id", "", "Instance UUID")
+	fs.StringVar(&tokenFile, "token-file", "/etc/vmkit/token", "Path to bootstrap token file")
+	fs.StringVar(&sessionFile, "session-file", "/etc/vmkit/session", "Path to session token file")
+	fs.StringVar(&logLevel, "log-level", "info", "Log level: debug, info, warn, error")
+	fs.Parse(os.Args[2:])
+
+	if gatewayURL == "" {
+		fmt.Fprintf(os.Stderr, "Error: --gateway-url is required\n")
+		os.Exit(1)
+	}
+	if instanceID == "" {
+		fmt.Fprintf(os.Stderr, "Error: --instance-id is required\n")
+		os.Exit(1)
+	}
+
+	var level slog.Level
+	switch logLevel {
+	case "debug":
+		level = slog.LevelDebug
+	case "info":
+		level = slog.LevelInfo
+	case "warn":
+		level = slog.LevelWarn
+	case "error":
+		level = slog.LevelError
+	default:
+		fmt.Fprintf(os.Stderr, "Error: invalid log level %q\n", logLevel)
+		os.Exit(1)
+	}
+
+	daemon.Version = Version
+
+	d := daemon.New(daemon.Config{
+		GatewayURL:    gatewayURL,
+		InstanceID:    instanceID,
+		BootstrapPath: tokenFile,
+		SessionPath:   sessionFile,
+		LogLevel:      level,
+	})
+
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+
+	go func() {
+		<-ctx.Done()
+		d.Shutdown()
+	}()
+
+	if err := d.Run(); err != nil && ctx.Err() == nil {
+		fmt.Fprintf(os.Stderr, "daemon error: %v\n", err)
+		os.Exit(1)
+	}
+}
+
 func printUsage() {
-	fmt.Println(`vmkit-agent - Supabase deployment agent
+	fmt.Println(`vmkit-agent - VM deployment agent
 
 Usage:
   vmkit-agent <command> [options]
 
 Commands:
   version              Show version
+  daemon               Run as a persistent daemon with WS uplink to the gateway
   deploy               Deploy a Supabase instance
   harden               Harden VM security (SSH, firewall, fail2ban)
   cleanup              Cleanup VM and optionally restore original settings
