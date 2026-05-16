@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -165,7 +166,7 @@ func (d *Daemon) runOnce() error {
 
 func (d *Daemon) readToken() (string, error) {
 	if data, err := os.ReadFile(d.sessionPath); err == nil && len(data) > 0 {
-		return string(data), nil
+		return strings.TrimSpace(string(data)), nil
 	}
 	data, err := os.ReadFile(d.bootstrapPath)
 	if err != nil {
@@ -174,7 +175,7 @@ func (d *Daemon) readToken() (string, error) {
 	if len(data) == 0 {
 		return "", fmt.Errorf("bootstrap token file is empty: %s", d.bootstrapPath)
 	}
-	return string(data), nil
+	return strings.TrimSpace(string(data)), nil
 }
 
 func (d *Daemon) sendHello() error {
