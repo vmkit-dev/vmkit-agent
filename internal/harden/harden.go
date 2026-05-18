@@ -205,9 +205,9 @@ func preflightChecks(cfg *types.HardenConfig) error {
 		return fmt.Errorf("invalid SSH public key format")
 	}
 
-	// Check 3: Verify SSH port is reasonable
-	if cfg.SSHPort < 1024 || cfg.SSHPort > 65535 {
-		return fmt.Errorf("SSH port must be between 1024 and 65535")
+	// Check 3: Verify SSH port is reasonable (allow well-known ports like 22)
+	if cfg.SSHPort < 1 || cfg.SSHPort > 65535 {
+		return fmt.Errorf("SSH port must be between 1 and 65535")
 	}
 
 	// Check 4: Check if port is already in use
