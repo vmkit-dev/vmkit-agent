@@ -210,16 +210,6 @@ func preflightChecks(cfg *types.HardenConfig) error {
 		return fmt.Errorf("SSH port must be between 1 and 65535")
 	}
 
-	// Check 4: Check if port is already in use
-	cmd := exec.Command("ss", "-tuln")
-	output, err := cmd.Output()
-	if err == nil {
-		portStr := fmt.Sprintf(":%d", cfg.SSHPort)
-		if strings.Contains(string(output), portStr) {
-			return fmt.Errorf("port %d is already in use", cfg.SSHPort)
-		}
-	}
-
 	// Check 5: Verify OS compatibility (Ubuntu/Debian)
 	if _, err := os.Stat("/etc/debian_version"); err != nil {
 		return fmt.Errorf("currently only Ubuntu/Debian systems are supported")
