@@ -36,3 +36,22 @@ is the v1 vmkit Solo SKU.
 Once `vmkit-backend` implements the daemon-side WS endpoint, hook this agent's
 daemon mode up. End-to-end test: provision a fresh Hetzner cax11, install daemon
 via cloud-init, see it connect and heartbeat.
+
+## Dormant subsystems
+
+### `internal/deploy/` — supabyoi heritage, not wired into vmkit deploys (vk-d0m, 2026-05-18)
+
+`internal/deploy/deploy.go` implements a 7-step Docker Compose orchestration
+(pull → nginx → config → compose → health → nginx-config → TLS) and registers a
+`kamal.deploy` JSON-RPC handler. **vmkit's deploy path does not call it.**
+
+The actual flow:
+
+1. `vmkit-backend` dispatches the `vmkit-deploy.yml` GitHub Actions workflow
+   (see `vmkit_backend.api.internal.deploy_impl`).
+2. The workflow runs `kamal deploy` from CI against the target VM over SSH.
+
+The handler stays here as a **v2 candidate** for the day we want to drop the
+GH Actions dependency and drive deploys straight into the on-VM daemon. Until
+then, treat `internal/deploy/` and its supabyoi-shaped templates as inert —
+extending them without first re-wiring the deploy path is wasted effort.

@@ -1,3 +1,19 @@
+// Package deploy implements an on-VM Docker Compose orchestrator that was
+// inherited from supabyoi/agent's seed.
+//
+// vk-d0m (2026-05-18): NOT WIRED IN VMKIT.
+//
+// vmkit's deploy path runs Kamal from a GitHub Actions workflow dispatched by
+// vmkit-backend (see vmkit-backend/src/vmkit_backend/api/internal.deploy_impl
+// and the gen_workflow agent). The kamal.deploy JSON-RPC handler registered
+// here is not called by that path — it remains as a v2 candidate for the day
+// we want to remove the GH Actions dependency and drive deploys directly into
+// the on-VM daemon. Until then this entire package is intentionally dormant;
+// do not extend it without first re-wiring the deploy path.
+//
+// Heritage references to /opt/supabase, the 7-step Compose pipeline, and the
+// nginx/Compose templates below all come from the supabyoi seed and reflect
+// that earlier product, not the current vmkit deploy contract.
 package deploy
 
 import (
