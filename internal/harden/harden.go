@@ -1,6 +1,7 @@
 package harden
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"os/exec"
@@ -12,11 +13,26 @@ import (
 )
 
 const (
-	backupDir         = "/var/backups/supabyoi"
-	sshdConfigDir     = "/etc/ssh/sshd_config.d"
-	sshdConfigFile    = "/etc/ssh/sshd_config.d/supabyoi.conf"
+	backupDir          = "/var/backups/supabyoi"
+	sshdConfigDir      = "/etc/ssh/sshd_config.d"
+	sshdConfigFile     = "/etc/ssh/sshd_config.d/supabyoi.conf"
 	rollbackScriptPath = "/usr/local/bin/supabyoi-rollback-hardening.sh"
 )
+
+// runCmd executes a command with a hard timeout. Returns error if the command
+// fails or the timeout elapses (context.DeadlineExceeded wraps the error).
+func runCmd(timeout time.Duration, name string, args ...string) error {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).Run()
+}
+
+// runCmdOutput executes a command with a hard timeout and captures stdout.
+func runCmdOutput(timeout time.Duration, name string, args ...string) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
+	defer cancel()
+	return exec.CommandContext(ctx, name, args...).Output()
+}
 
 // Harden executes VM hardening with comprehensive safety checks and rollback
 func Harden(cfg *types.HardenConfig) types.HardenResult {
@@ -244,8 +260,7 @@ func createBackups() error {
 
 		backupPath := filepath.Join(backupDir, fmt.Sprintf("%s.%s", filepath.Base(file), timestamp))
 
-		cmd := exec.Command("cp", "-p", file, backupPath)
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(10*time.Second, "cp", "-p", file, backupPath); err != nil {
 			return fmt.Errorf("failed to backup %s: %v", file, err)
 		}
 	}
@@ -276,20 +291,16 @@ func finishStep(step types.StepResult) types.StepResult {
 // configureUser creates the VM user and sets up sudo access
 func configureUser(cfg *types.HardenConfig) error {
 	// Check if user already exists
-	cmd := exec.Command("id", "-u", cfg.VMUser)
-	userExists := cmd.Run() == nil
+	userExists := runCmd(5*time.Second, "id", "-u", cfg.VMUser) == nil
 
 	if !userExists {
-		// Create user with home directory
-		cmd = exec.Command("useradd", "-m", "-s", "/bin/bash", cfg.VMUser)
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(10*time.Second, "useradd", "-m", "-s", "/bin/bash", cfg.VMUser); err != nil {
 			return fmt.Errorf("failed to create user: %v", err)
 		}
 	}
 
 	// Add user to sudo group
-	cmd = exec.Command("usermod", "-aG", "sudo", cfg.VMUser)
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(10*time.Second, "usermod", "-aG", "sudo", cfg.VMUser); err != nil {
 		return fmt.Errorf("failed to add user to sudo group: %v", err)
 	}
 
@@ -302,8 +313,7 @@ func configureUser(cfg *types.HardenConfig) error {
 	}
 
 	// Verify sudoers file syntax
-	cmd = exec.Command("visudo", "-c", "-f", sudoersFile)
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(5*time.Second, "visudo", "-c", "-f", sudoersFile); err != nil {
 		os.Remove(sudoersFile)
 		return fmt.Errorf("invalid sudoers configuration: %v", err)
 	}
@@ -328,14 +338,12 @@ func configureUser(cfg *types.HardenConfig) error {
 	}
 
 	// Set correct ownership
-	cmd = exec.Command("chown", "-R", fmt.Sprintf("%s:%s", cfg.VMUser, cfg.VMUser), sshDir)
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(10*time.Second, "chown", "-R", fmt.Sprintf("%s:%s", cfg.VMUser, cfg.VMUser), sshDir); err != nil {
 		return fmt.Errorf("failed to set ownership: %v", err)
 	}
 
 	// Test sudo capability
-	cmd = exec.Command("sudo", "-u", cfg.VMUser, "sudo", "-n", "true")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(10*time.Second, "sudo", "-u", cfg.VMUser, "sudo", "-n", "true"); err != nil {
 		return fmt.Errorf("user cannot sudo without password: %v", err)
 	}
 
@@ -367,8 +375,7 @@ UsePAM yes
 	}
 
 	// Test SSH configuration syntax
-	cmd := exec.Command("sshd", "-t")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(10*time.Second, "sshd", "-t"); err != nil {
 		// Remove invalid config
 		os.Remove(sshdConfigFile)
 		return fmt.Errorf("invalid SSH configuration: %v", err)
@@ -381,8 +388,7 @@ UsePAM yes
 func restartAndTestSSH(cfg *types.HardenConfig) error {
 	// Determine SSH service name (different on various systems)
 	serviceName := "ssh"
-	cmd := exec.Command("systemctl", "is-active", "ssh")
-	if err := cmd.Run(); err != nil {
+	if runCmd(5*time.Second, "systemctl", "is-active", "ssh") != nil {
 		// Try sshd
 		serviceName = "sshd"
 	}
@@ -394,57 +400,48 @@ func restartAndTestSSH(cfg *types.HardenConfig) error {
 	// and SSH continues listening on port 22, causing validation to fail
 	// Solution: Disable socket activation and run SSH service directly
 	socketName := serviceName + ".socket"
-	cmd = exec.Command("systemctl", "is-active", socketName)
-	if err := cmd.Run(); err == nil {
+	if runCmd(5*time.Second, "systemctl", "is-active", socketName) == nil {
 		// Socket is active - must disable it to allow port change
-		// CRITICAL: These commands MUST succeed for port change to work
 
-		// Step 1: Stop the socket
-		cmd = exec.Command("systemctl", "stop", socketName)
-		if err := cmd.Run(); err != nil {
+		// Step 1: Stop the socket (30s timeout — systemd can be slow)
+		if err := runCmd(30*time.Second, "systemctl", "stop", socketName); err != nil {
 			return fmt.Errorf("failed to stop %s (required for port change): %v", socketName, err)
 		}
 
 		// Step 2: Disable the socket (prevent auto-restart on boot)
-		cmd = exec.Command("systemctl", "disable", socketName)
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(15*time.Second, "systemctl", "disable", socketName); err != nil {
 			return fmt.Errorf("failed to disable %s (required for port change): %v", socketName, err)
 		}
 
 		// Step 3: Verify socket is actually inactive
 		time.Sleep(500 * time.Millisecond) // Brief delay for systemd to update
-		cmd = exec.Command("systemctl", "is-active", socketName)
-		if err := cmd.Run(); err == nil {
+		if runCmd(5*time.Second, "systemctl", "is-active", socketName) == nil {
 			// Socket is still active - this should not happen!
 			return fmt.Errorf("%s is still active after stop/disable - systemd may be auto-restarting it", socketName)
 		}
 	}
 
 	// Ensure SSH service is enabled to start on boot (now that socket is disabled)
-	cmd = exec.Command("systemctl", "enable", serviceName)
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(15*time.Second, "systemctl", "enable", serviceName); err != nil {
 		return fmt.Errorf("failed to enable %s service: %v", serviceName, err)
 	}
 
-	// Restart SSH service
-	cmd = exec.Command("systemctl", "restart", serviceName)
-	if err := cmd.Run(); err != nil {
+	// Restart SSH service (30s: systemd may need time to stop old process first)
+	if err := runCmd(30*time.Second, "systemctl", "restart", serviceName); err != nil {
 		return fmt.Errorf("failed to restart SSH service: %v", err)
 	}
 
-	// Wait for SSH to be ready
+	// Wait for SSH to be ready (up to 10s)
 	maxAttempts := 10
 	for i := 0; i < maxAttempts; i++ {
-		cmd = exec.Command("systemctl", "is-active", serviceName)
-		if err := cmd.Run(); err == nil {
+		if runCmd(5*time.Second, "systemctl", "is-active", serviceName) == nil {
 			break
 		}
 		time.Sleep(1 * time.Second)
 	}
 
 	// Verify SSH is listening on the new port
-	cmd = exec.Command("ss", "-tuln")
-	output, err := cmd.Output()
+	output, err := runCmdOutput(10*time.Second, "ss", "-tuln")
 	if err != nil {
 		return fmt.Errorf("failed to check listening ports: %v", err)
 	}
@@ -454,10 +451,8 @@ func restartAndTestSSH(cfg *types.HardenConfig) error {
 		return fmt.Errorf("SSH is not listening on port %d", cfg.SSHPort)
 	}
 
-	// Test connection using the new user and port
-	// Note: This is a basic check - in production, the calling system should verify connectivity
-	cmd = exec.Command("timeout", "5", "nc", "-z", "localhost", fmt.Sprintf("%d", cfg.SSHPort))
-	if err := cmd.Run(); err != nil {
+	// Test connection using nc (already has a 5s wall-clock limit via timeout(1))
+	if err := runCmd(10*time.Second, "timeout", "5", "nc", "-z", "localhost", fmt.Sprintf("%d", cfg.SSHPort)); err != nil {
 		return fmt.Errorf("cannot connect to SSH on port %d: %v", cfg.SSHPort, err)
 	}
 
@@ -467,51 +462,40 @@ func restartAndTestSSH(cfg *types.HardenConfig) error {
 // configureFirewall sets up UFW firewall with necessary rules
 func configureFirewall(cfg *types.HardenConfig) error {
 	// Check if UFW is installed
-	cmd := exec.Command("which", "ufw")
-	if err := cmd.Run(); err != nil {
+	if runCmd(5*time.Second, "which", "ufw") != nil {
 		// Install UFW
-		cmd = exec.Command("apt-get", "update")
-		cmd.Run() // Best effort
+		runCmd(60*time.Second, "apt-get", "update") // Best effort
 
-		cmd = exec.Command("apt-get", "install", "-y", "ufw")
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(120*time.Second, "apt-get", "install", "-y", "ufw"); err != nil {
 			return fmt.Errorf("failed to install UFW: %v", err)
 		}
 	}
 
 	// CRITICAL: Add SSH port rule BEFORE enabling UFW
-	cmd = exec.Command("ufw", "allow", fmt.Sprintf("%d/tcp", cfg.SSHPort))
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(15*time.Second, "ufw", "allow", fmt.Sprintf("%d/tcp", cfg.SSHPort)); err != nil {
 		return fmt.Errorf("failed to allow SSH port: %v", err)
 	}
 
-	// Allow HTTP and HTTPS
-	cmd = exec.Command("ufw", "allow", "80/tcp")
-	cmd.Run() // Best effort
-
-	cmd = exec.Command("ufw", "allow", "443/tcp")
-	cmd.Run() // Best effort
+	// Allow HTTP and HTTPS (best effort)
+	runCmd(15*time.Second, "ufw", "allow", "80/tcp")
+	runCmd(15*time.Second, "ufw", "allow", "443/tcp")
 
 	// Set default policies
-	cmd = exec.Command("ufw", "default", "deny", "incoming")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(15*time.Second, "ufw", "default", "deny", "incoming"); err != nil {
 		return fmt.Errorf("failed to set default deny: %v", err)
 	}
 
-	cmd = exec.Command("ufw", "default", "allow", "outgoing")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(15*time.Second, "ufw", "default", "allow", "outgoing"); err != nil {
 		return fmt.Errorf("failed to set default allow outgoing: %v", err)
 	}
 
 	// Enable UFW (non-interactive)
-	cmd = exec.Command("ufw", "--force", "enable")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(30*time.Second, "ufw", "--force", "enable"); err != nil {
 		return fmt.Errorf("failed to enable UFW: %v", err)
 	}
 
 	// Verify UFW is active
-	cmd = exec.Command("ufw", "status")
-	output, err := cmd.Output()
+	output, err := runCmdOutput(10*time.Second, "ufw", "status")
 	if err != nil {
 		return fmt.Errorf("failed to check UFW status: %v", err)
 	}
@@ -531,14 +515,11 @@ func configureFirewall(cfg *types.HardenConfig) error {
 // installFail2Ban installs and configures fail2ban
 func installFail2Ban(cfg *types.HardenConfig) error {
 	// Check if fail2ban is already installed
-	cmd := exec.Command("which", "fail2ban-client")
-	if err := cmd.Run(); err != nil {
+	if runCmd(5*time.Second, "which", "fail2ban-client") != nil {
 		// Install fail2ban
-		cmd = exec.Command("apt-get", "update")
-		cmd.Run() // Best effort
+		runCmd(60*time.Second, "apt-get", "update") // Best effort
 
-		cmd = exec.Command("apt-get", "install", "-y", "fail2ban")
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(120*time.Second, "apt-get", "install", "-y", "fail2ban"); err != nil {
 			return fmt.Errorf("failed to install fail2ban: %v", err)
 		}
 	}
@@ -560,14 +541,12 @@ findtime = 600
 	}
 
 	// Restart fail2ban
-	cmd = exec.Command("systemctl", "restart", "fail2ban")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(30*time.Second, "systemctl", "restart", "fail2ban"); err != nil {
 		return fmt.Errorf("failed to restart fail2ban: %v", err)
 	}
 
 	// Enable fail2ban
-	cmd = exec.Command("systemctl", "enable", "fail2ban")
-	if err := cmd.Run(); err != nil {
+	if err := runCmd(15*time.Second, "systemctl", "enable", "fail2ban"); err != nil {
 		return fmt.Errorf("failed to enable fail2ban: %v", err)
 	}
 
@@ -577,13 +556,10 @@ findtime = 600
 // enableAutoUpdates configures automatic security updates
 func enableAutoUpdates() error {
 	// Install unattended-upgrades if not present
-	cmd := exec.Command("which", "unattended-upgrade")
-	if err := cmd.Run(); err != nil {
-		cmd = exec.Command("apt-get", "update")
-		cmd.Run() // Best effort
+	if runCmd(5*time.Second, "which", "unattended-upgrade") != nil {
+		runCmd(60*time.Second, "apt-get", "update") // Best effort
 
-		cmd = exec.Command("apt-get", "install", "-y", "unattended-upgrades")
-		if err := cmd.Run(); err != nil {
+		if err := runCmd(120*time.Second, "apt-get", "install", "-y", "unattended-upgrades"); err != nil {
 			return fmt.Errorf("failed to install unattended-upgrades: %v", err)
 		}
 	}
@@ -708,8 +684,7 @@ func rollback(result *types.HardenResult) {
 	}
 
 	if latestSSHDConfig != "" {
-		cmd := exec.Command("cp", "-f", latestSSHDConfig, "/etc/ssh/sshd_config")
-		if err := cmd.Run(); err == nil {
+		if runCmd(10*time.Second, "cp", "-f", latestSSHDConfig, "/etc/ssh/sshd_config") == nil {
 			rollbackSteps = append(rollbackSteps, "Restored /etc/ssh/sshd_config")
 		}
 	}
@@ -722,33 +697,26 @@ func rollback(result *types.HardenResult) {
 
 	// Re-enable socket activation if it was disabled
 	socketName := "ssh.socket"
-	cmd := exec.Command("systemctl", "enable", socketName)
-	if err := cmd.Run(); err == nil {
+	if runCmd(15*time.Second, "systemctl", "enable", socketName) == nil {
 		rollbackSteps = append(rollbackSteps, "Re-enabled SSH socket activation")
 	}
 
 	// Stop the direct service and let socket take over
-	cmd = exec.Command("systemctl", "stop", "ssh")
-	if err := cmd.Run(); err == nil {
-		cmd = exec.Command("systemctl", "start", socketName)
-		if err := cmd.Run(); err == nil {
+	if runCmd(30*time.Second, "systemctl", "stop", "ssh") == nil {
+		if runCmd(15*time.Second, "systemctl", "start", socketName) == nil {
 			rollbackSteps = append(rollbackSteps, "Restored SSH socket activation")
 		}
 	} else {
 		// Try sshd
-		cmd = exec.Command("systemctl", "stop", "sshd")
-		cmd.Run() // Best effort
-		cmd = exec.Command("systemctl", "enable", "sshd.socket")
-		cmd.Run() // Best effort
-		cmd = exec.Command("systemctl", "start", "sshd.socket")
-		if err := cmd.Run(); err == nil {
+		runCmd(30*time.Second, "systemctl", "stop", "sshd")
+		runCmd(15*time.Second, "systemctl", "enable", "sshd.socket")
+		if runCmd(15*time.Second, "systemctl", "start", "sshd.socket") == nil {
 			rollbackSteps = append(rollbackSteps, "Restored SSH socket activation (sshd)")
 		}
 	}
 
 	// Disable UFW if it was enabled
-	cmd = exec.Command("ufw", "--force", "disable")
-	if err := cmd.Run(); err == nil {
+	if runCmd(15*time.Second, "ufw", "--force", "disable") == nil {
 		rollbackSteps = append(rollbackSteps, "Disabled UFW firewall")
 	}
 
