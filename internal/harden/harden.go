@@ -383,11 +383,15 @@ UsePAM yes
 		return fmt.Errorf("failed to write SSH config: %v", err)
 	}
 
-	// Test SSH configuration syntax
-	if err := runCmd(10*time.Second, "sshd", "-t"); err != nil {
-		// Remove invalid config
+	// Test SSH configuration syntax. Use full path so this works regardless
+	// of the systemd service PATH. CombinedOutput captures stderr (where sshd
+	// writes its complaints) so the error includes the actual failure reason.
+	sshdCtx, sshdCancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer sshdCancel()
+	sshdCmd := exec.CommandContext(sshdCtx, "/usr/sbin/sshd", "-t")
+	if out, err := sshdCmd.CombinedOutput(); err != nil {
 		os.Remove(sshdConfigFile)
-		return fmt.Errorf("invalid SSH configuration: %v", err)
+		return fmt.Errorf("invalid SSH configuration (%v): %s", err, strings.TrimSpace(string(out)))
 	}
 
 	return nil
