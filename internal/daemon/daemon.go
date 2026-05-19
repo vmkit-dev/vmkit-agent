@@ -73,7 +73,13 @@ type welcomeResult struct {
 	HeartbeatIntervalSeconds   int     `json:"heartbeat_interval_seconds"`
 }
 
-var Version = "0.1.0"
+// Version is the agent build version, surfaced over the daemon's welcome
+// handshake. main() copies the package-level main.Version into this var
+// at startup (see cmd/vmkit-agent/main.go); the "dev" default is what
+// gets used in tests + non-ldflag builds that import the daemon package
+// directly. vk-nzp: no literal version string anywhere in the codebase
+// outside the build-time injection point.
+var Version = "dev"
 
 func New(cfg Config) *Daemon {
 	ctx, cancel := context.WithCancel(context.Background())

@@ -29,7 +29,11 @@ import (
 	"github.com/vmkit-dev/vmkit-agent/pkg/types"
 )
 
-var Version = "0.1.0"
+// Version is injected at build time via -ldflags "-X main.Version=...".
+// The default "dev" sticker lands in `go run` / `go build` (no ldflags)
+// builds; the release workflow + Makefile inject `git describe --tags`
+// so shipped binaries report the actual tag (vk-nzp).
+var Version = "dev"
 
 func main() {
 	if len(os.Args) < 2 {

@@ -1,23 +1,39 @@
-.PHONY: build build-linux test clean install
+.PHONY: build build-linux build-linux-amd64 build-linux-arm64 test clean install fmt lint
 
-BINARY_NAME=vmkit-agent
-VERSION?=0.14.0
-BUILD_DIR=bin
+BINARY_NAME = vmkit-agent
+# vk-nzp: derive the version from the nearest git tag so `vmkit-agent version`
+# reports something useful in every build path (dev, manual release, CI).
+# Append `-dirty` if there are uncommitted changes, and fall back to `dev`
+# outside a git checkout (e.g. when the source tarball is extracted on a VM).
+VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+BUILD_DIR = bin
+
+LDFLAGS = -ldflags "-X main.Version=$(VERSION)"
 
 build:
-	@echo "Building $(BINARY_NAME)..."
+	@echo "Building $(BINARY_NAME) version=$(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
-	go build -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/vmkit-agent
+	go build $(LDFLAGS) -o $(BUILD_DIR)/$(BINARY_NAME) ./cmd/vmkit-agent
 
-build-linux:
-	@echo "Building $(BINARY_NAME) for Linux..."
+build-linux: build-linux-amd64 build-linux-arm64
+	@cp $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(BUILD_DIR)/$(BINARY_NAME)-linux
+	@echo "Linux binaries ready: $(BUILD_DIR)/$(BINARY_NAME)-linux-{amd64,arm64} (version=$(VERSION))"
+
+build-linux-amd64:
+	@echo "Building $(BINARY_NAME)-linux-amd64 version=$(VERSION)..."
 	@mkdir -p $(BUILD_DIR)
 	GOOS=linux GOARCH=amd64 go build \
-		-ldflags "-X main.Version=$(VERSION)" \
+		$(LDFLAGS) \
 		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 \
 		./cmd/vmkit-agent
-	@cp $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64 $(BUILD_DIR)/$(BINARY_NAME)-linux
-	@echo "Linux binary ready at $(BUILD_DIR)/$(BINARY_NAME)-linux and $(BUILD_DIR)/$(BINARY_NAME)-linux-amd64"
+
+build-linux-arm64:
+	@echo "Building $(BINARY_NAME)-linux-arm64 version=$(VERSION)..."
+	@mkdir -p $(BUILD_DIR)
+	GOOS=linux GOARCH=arm64 go build \
+		$(LDFLAGS) \
+		-o $(BUILD_DIR)/$(BINARY_NAME)-linux-arm64 \
+		./cmd/vmkit-agent
 
 test:
 	@echo "Running tests..."
@@ -35,7 +51,7 @@ clean:
 
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	go install ./cmd/vmkit-agent
+	go install $(LDFLAGS) ./cmd/vmkit-agent
 
 fmt:
 	@echo "Formatting code..."

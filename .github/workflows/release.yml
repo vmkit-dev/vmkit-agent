@@ -1,0 +1,72 @@
+# vk-nzp: Release workflow — build linux-amd64 + linux-arm64 with the tag
+# stamped into the binary, then attach the artifacts to the GitHub release
+# created from the same tag push.
+#
+# Trigger: push to a `v*` tag (e.g. `git tag v0.1.5 && git push --tags`).
+# The job uses `make build-linux-{amd64,arm64}`; the Makefile picks up the
+# tag through `git describe --tags --always --dirty` so the ldflag inject
+# matches what `gh release create` records in the release notes.
+#
+# We deliberately do NOT bake `actions/create-release` into this workflow —
+# Lakshmi authors release notes by hand and uploads the binaries with
+# `gh release upload`. The "Upload assets to existing release" step here
+# is idempotent (gh release upload --clobber) so a tag pushed before the
+# release record exists prints a clear error and skips, rather than
+# half-publishing.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with tags so git describe works)
+        uses: actions/checkout@v4
+        with:
+          # `git describe --tags` needs the tag history, not just the SHA
+          # being built. fetch-depth: 0 pulls all refs.
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run tests
+        run: go test ./...
+
+      - name: Build linux/amd64 + linux/arm64
+        run: make build-linux
+
+      - name: Verify version baked into the binaries
+        run: |
+          # `vmkit-agent version` runs the linux build under the host OS only
+          # when the host is linux/amd64, which the runner is. The arm64
+          # binary can't execute here, so we only smoke-test amd64 and
+          # confirm arm64's size + format separately.
+          ./bin/vmkit-agent-linux-amd64 version
+          file ./bin/vmkit-agent-linux-arm64
+
+      - name: Upload assets to the release matching this tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          if ! gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG does not exist yet — create it via 'gh release create $TAG' first, then re-run this workflow."
+            exit 1
+          fi
+          gh release upload "$TAG" \
+            bin/vmkit-agent-linux-amd64 \
+            bin/vmkit-agent-linux-arm64 \
+            --clobber
