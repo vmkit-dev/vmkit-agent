@@ -383,9 +383,11 @@ UsePAM yes
 		return fmt.Errorf("failed to write SSH config: %v", err)
 	}
 
-	// Test SSH configuration syntax. Use full path so this works regardless
-	// of the systemd service PATH. CombinedOutput captures stderr (where sshd
-	// writes its complaints) so the error includes the actual failure reason.
+	// Test SSH configuration syntax. sshd -t requires /run/sshd to exist
+	// (privilege separation dir) even in test mode; on a fresh VM it doesn't
+	// exist until sshd has run once. Create it before the test, then remove
+	// it afterwards so we don't leave unexpected state.
+	_ = os.MkdirAll("/run/sshd", 0755)
 	sshdCtx, sshdCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer sshdCancel()
 	sshdCmd := exec.CommandContext(sshdCtx, "/usr/sbin/sshd", "-t")
