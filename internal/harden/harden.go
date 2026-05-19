@@ -299,15 +299,18 @@ func configureUser(cfg *types.HardenConfig) error {
 		}
 	}
 
-	// Add user to sudo and docker groups (docker group may not exist if Docker
-	// is not yet installed; ignore that error — cloud-init installs Docker and
-	// the group will exist by the time the agent runs harden).
+	// Add user to sudo and docker groups. Cloud-init installs Docker before
+	// starting the agent, so the docker group must exist by harden time.
 	if err := runCmd(10*time.Second, "usermod", "-aG", "sudo", cfg.VMUser); err != nil {
 		return fmt.Errorf("failed to add user to sudo group: %v", err)
 	}
 	if err := runCmd(10*time.Second, "usermod", "-aG", "docker", cfg.VMUser); err != nil {
-		// Log but don't fail — Docker may not be installed yet on some images.
-		fmt.Printf("warn: failed to add %s to docker group: %v\n", cfg.VMUser, err)
+		return fmt.Errorf("failed to add user to docker group (is Docker installed?): %v", err)
+	}
+	// Verify the group membership is visible in /etc/group immediately.
+	out, err := runCmdOutput(5*time.Second, "groups", cfg.VMUser)
+	if err != nil || !strings.Contains(string(out), "docker") {
+		return fmt.Errorf("usermod -aG docker succeeded but %s is not in docker group (groups: %s)", cfg.VMUser, strings.TrimSpace(string(out)))
 	}
 
 	// Configure passwordless sudo
