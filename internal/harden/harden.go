@@ -363,15 +363,18 @@ func configureSSH(cfg *types.HardenConfig) error {
 		return fmt.Errorf("failed to create sshd config directory: %v", err)
 	}
 
-	// Generate SSH configuration
-	sshdConfig := fmt.Sprintf(`# Supabyoi SSH Security Configuration
+	// Generate SSH configuration.
+	// ChallengeResponseAuthentication was renamed to KbdInteractiveAuthentication
+	// in OpenSSH 9.x (Ubuntu 24.04+). Both names are accepted in 8.x, but 9.x
+	// treats the old name as an error that causes `sshd -t` to exit 255.
+	sshdConfig := fmt.Sprintf(`# VMKit SSH Security Configuration
 # Generated on %s
 
 Port %d
 PermitRootLogin no
 PasswordAuthentication no
 PubkeyAuthentication yes
-ChallengeResponseAuthentication no
+KbdInteractiveAuthentication no
 UsePAM yes
 `, time.Now().Format(time.RFC3339), cfg.SSHPort)
 
