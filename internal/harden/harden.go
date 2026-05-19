@@ -401,10 +401,13 @@ UsePAM yes
 
 // restartAndTestSSH restarts the SSH service and validates connectivity
 func restartAndTestSSH(cfg *types.HardenConfig) error {
-	// Determine SSH service name (different on various systems)
+	// Determine SSH service name by checking which unit file exists.
+	// Ubuntu uses "ssh.service"; RHEL/CentOS uses "sshd.service".
+	// Using is-active would misdetect Ubuntu 24.04 where only ssh.socket is
+	// active (not ssh.service), causing us to fall through to the non-existent
+	// sshd.service unit and fail with exit status 1 on systemctl enable.
 	serviceName := "ssh"
-	if runCmd(5*time.Second, "systemctl", "is-active", "ssh") != nil {
-		// Try sshd
+	if _, err := runCmdOutput(5*time.Second, "systemctl", "cat", "ssh.service"); err != nil {
 		serviceName = "sshd"
 	}
 
