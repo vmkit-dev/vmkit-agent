@@ -12,7 +12,6 @@ import (
 	"github.com/vmkit-dev/vmkit-agent/internal/health"
 	"github.com/vmkit-dev/vmkit-agent/internal/openport"
 	"github.com/vmkit-dev/vmkit-agent/internal/rotatecreds"
-	"github.com/vmkit-dev/vmkit-agent/internal/upgrade"
 	"github.com/vmkit-dev/vmkit-agent/pkg/types"
 )
 
@@ -48,17 +47,11 @@ func VMOpenPort(_ context.Context, params json.RawMessage) (any, error) {
 	return result, nil
 }
 
-func VMUpgrade(_ context.Context, params json.RawMessage) (any, error) {
-	var cfg types.UpgradeConfig
-	if err := json.Unmarshal(params, &cfg); err != nil {
-		return nil, fmt.Errorf("invalid params: %w", err)
-	}
-	result := upgrade.Upgrade(cfg)
-	if !result.Success {
-		return result, fmt.Errorf("upgrade failed: %s", result.ErrorMessage)
-	}
-	return result, nil
-}
+// vm.upgrade is handled by AgentUpgrade (agent_upgrade.go): it self-upgrades
+// the vmkit-agent binary. The former VMUpgrade handler ran a Supabase
+// docker-compose upgrade (internal/upgrade — a supabyoi seed leftover) that
+// the vmkit product never dispatched; that package stays for the `upgrade`
+// CLI subcommand but is no longer wired to an RPC.
 
 func VMDiagnose(_ context.Context, params json.RawMessage) (any, error) {
 	var cfg types.DiagnoseConfig

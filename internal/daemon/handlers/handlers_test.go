@@ -27,8 +27,8 @@ func TestVMOpenPortInvalidParams(t *testing.T) {
 	}
 }
 
-func TestVMUpgradeInvalidParams(t *testing.T) {
-	_, err := VMUpgrade(context.Background(), json.RawMessage(`{bad`))
+func TestAgentUpgradeInvalidParams(t *testing.T) {
+	_, err := AgentUpgrade(context.Background(), json.RawMessage(`{bad`))
 	if err == nil {
 		t.Error("expected error for invalid JSON params")
 	}
