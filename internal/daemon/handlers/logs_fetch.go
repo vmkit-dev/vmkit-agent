@@ -33,7 +33,44 @@ const (
 
 // containerNameRe restricts container names to a safe character set. exec.Command
 // does not invoke a shell, but validating the name keeps the surface defensive.
-var containerNameRe = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+var containerNameRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
+
+// resolveContainer returns the container name to use. When the caller passes
+// "app" (the default) and no container with that exact name exists, we fall
+// back to the first running Kamal app container on the host — identified by
+// the label=service filter that Kamal stamps on every managed container,
+// excluding kamal-proxy itself. This lets the MCP tool work without the caller
+// knowing the Kamal service name ({repo}-{dest}-web-{hash}).
+func resolveContainer(ctx context.Context, requested string) string {
+	// Check if the exact container exists and is running.
+	chk := exec.CommandContext(ctx, "sudo", "docker", "ps", "--filter",
+		"name="+requested, "--filter", "status=running", "--format", "{{.Names}}")
+	out, err := chk.Output()
+	if err == nil {
+		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+			if strings.TrimSpace(line) == requested {
+				return requested
+			}
+		}
+	}
+
+	// Exact name not running — fall back to first running Kamal app container.
+	list := exec.CommandContext(ctx, "sudo", "docker", "ps",
+		"--filter", "label=service",
+		"--filter", "status=running",
+		"--format", "{{.Names}}")
+	out, err = list.Output()
+	if err != nil {
+		return requested
+	}
+	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		name = strings.TrimSpace(name)
+		if name != "" && name != "kamal-proxy" {
+			return name
+		}
+	}
+	return requested
+}
 
 // LogsFetch handles the logs.fetch RPC: it runs `docker logs` for a container
 // and returns the trailing lines. Docker errors (missing container, daemon
@@ -50,6 +87,12 @@ func LogsFetch(ctx context.Context, params json.RawMessage) (any, error) {
 	}
 	if !containerNameRe.MatchString(container) {
 		return logsFetchResult{Error: fmt.Sprintf("invalid container name: %q", container)}, nil
+	}
+
+	// When the caller uses the default "app" sentinel, resolve to the actual
+	// running Kamal container (whose name includes the service + dest + hash).
+	if container == "app" {
+		container = resolveContainer(ctx, container)
 	}
 
 	tail := p.Tail
