@@ -35,14 +35,18 @@ const (
 // does not invoke a shell, but validating the name keeps the surface defensive.
 var containerNameRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 
-// resolveContainer returns the container name to use. When the caller passes
-// "app" (the default) and no container with that exact name exists, we fall
-// back to the first running Kamal app container on the host — identified by
-// the label=service filter that Kamal stamps on every managed container,
-// excluding kamal-proxy itself. This lets the MCP tool work without the caller
-// knowing the Kamal service name ({repo}-{dest}-web-{hash}).
+// resolveContainer maps a logical container name to the actual running container
+// name on the host.  Kamal names containers with a hash suffix
+// ({service}-{role}-{dest}-{hash}), so callers can't know the exact name.
+//
+// Resolution order:
+//  1. Exact name match — returned immediately if running.
+//  2. Kamal role-label lookup: docker ps --filter label=role={name}.
+//     "app" (the default sentinel) is treated as an alias for "web".
+//  3. For the "app" sentinel only: first running Kamal-managed container
+//     (label=service, any role) as a last resort.
 func resolveContainer(ctx context.Context, requested string) string {
-	// Check if the exact container exists and is running.
+	// 1. Exact name match.
 	chk := exec.CommandContext(ctx, "sudo", "docker", "ps", "--filter",
 		"name="+requested, "--filter", "status=running", "--format", "{{.Names}}")
 	out, err := chk.Output()
@@ -54,21 +58,42 @@ func resolveContainer(ctx context.Context, requested string) string {
 		}
 	}
 
-	// Exact name not running — fall back to first running Kamal app container.
-	list := exec.CommandContext(ctx, "sudo", "docker", "ps",
-		"--filter", "label=service",
-		"--filter", "status=running",
-		"--format", "{{.Names}}")
-	out, err = list.Output()
-	if err != nil {
-		return requested
+	// 2. Kamal role-label lookup.  "app" is an alias for the primary "web" role.
+	roleLabel := requested
+	if requested == "app" {
+		roleLabel = "web"
 	}
-	for _, name := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-		name = strings.TrimSpace(name)
-		if name != "" && name != "kamal-proxy" {
-			return name
+	roleOut, err := exec.CommandContext(ctx, "sudo", "docker", "ps",
+		"--filter", "label=role="+roleLabel,
+		"--filter", "status=running",
+		"--format", "{{.Names}}").Output()
+	if err == nil {
+		for _, name := range strings.Split(strings.TrimSpace(string(roleOut)), "\n") {
+			name = strings.TrimSpace(name)
+			if name != "" && name != "kamal-proxy" {
+				return name
+			}
 		}
 	}
+
+	// 3. Fallback for the "app" sentinel only: first running Kamal container
+	//    regardless of role.  For explicit role names we let the requested value
+	//    pass through so the caller gets a clear "No such container" from Docker.
+	if requested == "app" {
+		listOut, err := exec.CommandContext(ctx, "sudo", "docker", "ps",
+			"--filter", "label=service",
+			"--filter", "status=running",
+			"--format", "{{.Names}}").Output()
+		if err == nil {
+			for _, name := range strings.Split(strings.TrimSpace(string(listOut)), "\n") {
+				name = strings.TrimSpace(name)
+				if name != "" && name != "kamal-proxy" {
+					return name
+				}
+			}
+		}
+	}
+
 	return requested
 }
 
@@ -89,11 +114,9 @@ func LogsFetch(ctx context.Context, params json.RawMessage) (any, error) {
 		return logsFetchResult{Error: fmt.Sprintf("invalid container name: %q", container)}, nil
 	}
 
-	// When the caller uses the default "app" sentinel, resolve to the actual
-	// running Kamal container (whose name includes the service + dest + hash).
-	if container == "app" {
-		container = resolveContainer(ctx, container)
-	}
+	// Resolve logical names ("app", "web", "worker", …) to the actual Kamal
+	// container name.  Applied unconditionally so non-default names work too.
+	container = resolveContainer(ctx, container)
 
 	tail := p.Tail
 	if tail <= 0 {
