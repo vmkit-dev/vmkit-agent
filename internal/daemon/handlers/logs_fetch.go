@@ -11,9 +11,16 @@ import (
 )
 
 // logsFetchParams is the request payload for the logs.fetch RPC.
+//
+// vk-9itz: EnvironmentID is optional — when present, resolveContainer uses it
+// as a primary filter (label=vmkit.environment_id=<id>) so two co-located
+// environments with the same role can be distinguished. Older containers
+// provisioned before the label was stamped are still found via the role-only
+// fallback.
 type logsFetchParams struct {
-	Container string `json:"container"`
-	Tail      int    `json:"tail"`
+	Container     string `json:"container"`
+	Tail          int    `json:"tail"`
+	EnvironmentID string `json:"environment_id,omitempty"`
 }
 
 // logsFetchResult is the success response for the logs.fetch RPC.
@@ -35,17 +42,27 @@ const (
 // does not invoke a shell, but validating the name keeps the surface defensive.
 var containerNameRe = regexp.MustCompile(`^[a-zA-Z0-9_.-]+$`)
 
+// envIDRe restricts the environment_id filter value to UUID-shaped strings so a
+// caller can't smuggle additional --filter args by stuffing whitespace or `=`
+// into the value. Backend only ever passes a UUID here; tighter than necessary
+// is fine.
+var envIDRe = regexp.MustCompile(`^[a-zA-Z0-9-]{1,64}$`)
+
 // resolveContainer maps a logical container name to the actual running container
 // name on the host.  Kamal names containers with a hash suffix
 // ({service}-{role}-{dest}-{hash}), so callers can't know the exact name.
 //
 // Resolution order:
 //  1. Exact name match — returned immediately if running.
-//  2. Kamal role-label lookup: docker ps --filter label=role={name}.
+//  2. vk-9itz: env-scoped role match — only when envID is set and valid:
+//     docker ps --filter label=vmkit.environment_id=<id> --filter label=role=<role>.
+//     Wins when two environments co-exist on the same VM; falls through if
+//     the container predates the vmkit.environment_id label.
+//  3. Kamal role-label lookup: docker ps --filter label=role={name}.
 //     "app" (the default sentinel) is treated as an alias for "web".
-//  3. For the "app" sentinel only: first running Kamal-managed container
+//  4. For the "app" sentinel only: first running Kamal-managed container
 //     (label=service, any role) as a last resort.
-func resolveContainer(ctx context.Context, requested string) string {
+func resolveContainer(ctx context.Context, requested, envID string) string {
 	// 1. Exact name match.
 	chk := exec.CommandContext(ctx, "sudo", "docker", "ps", "--filter",
 		"name="+requested, "--filter", "status=running", "--format", "{{.Names}}")
@@ -58,11 +75,34 @@ func resolveContainer(ctx context.Context, requested string) string {
 		}
 	}
 
-	// 2. Kamal role-label lookup.  "app" is an alias for the primary "web" role.
+	// Role label used for both env-scoped and legacy role-only lookups below.
 	roleLabel := requested
 	if requested == "app" {
 		roleLabel = "web"
 	}
+
+	// 2. vk-9itz: env-scoped role match. Skipped when envID is missing or
+	//    rejected by the safe-char regex so an unexpected value can't be
+	//    weaponised as an additional --filter argument.
+	if envID != "" && envIDRe.MatchString(envID) {
+		envOut, err := exec.CommandContext(ctx, "sudo", "docker", "ps",
+			"--filter", "label=vmkit.environment_id="+envID,
+			"--filter", "label=role="+roleLabel,
+			"--filter", "status=running",
+			"--format", "{{.Names}}").Output()
+		if err == nil {
+			for _, name := range strings.Split(strings.TrimSpace(string(envOut)), "\n") {
+				name = strings.TrimSpace(name)
+				if name != "" && name != "kamal-proxy" {
+					return name
+				}
+			}
+		}
+		// Fall through to legacy resolution if no env-tagged container exists
+		// (older deploys predate the label stamp).
+	}
+
+	// 3. Kamal role-label lookup.  "app" is an alias for the primary "web" role.
 	roleOut, err := exec.CommandContext(ctx, "sudo", "docker", "ps",
 		"--filter", "label=role="+roleLabel,
 		"--filter", "status=running",
@@ -76,7 +116,7 @@ func resolveContainer(ctx context.Context, requested string) string {
 		}
 	}
 
-	// 3. Fallback for the "app" sentinel only: first running Kamal container
+	// 4. Fallback for the "app" sentinel only: first running Kamal container
 	//    regardless of role.  For explicit role names we let the requested value
 	//    pass through so the caller gets a clear "No such container" from Docker.
 	if requested == "app" {
@@ -116,7 +156,9 @@ func LogsFetch(ctx context.Context, params json.RawMessage) (any, error) {
 
 	// Resolve logical names ("app", "web", "worker", …) to the actual Kamal
 	// container name.  Applied unconditionally so non-default names work too.
-	container = resolveContainer(ctx, container)
+	// vk-9itz: thread the optional environment_id through so multi-environment
+	// VMs disambiguate by label rather than by docker's listing order.
+	container = resolveContainer(ctx, container, p.EnvironmentID)
 
 	tail := p.Tail
 	if tail <= 0 {

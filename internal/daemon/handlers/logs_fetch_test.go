@@ -40,6 +40,24 @@ func TestLogsFetchDockerErrorNeverCrashes(t *testing.T) {
 	}
 }
 
+func TestLogsFetchAcceptsEnvironmentID(t *testing.T) {
+	// vk-9itz: environment_id is optional and additive — when present the
+	// resolver tries an env-scoped match before falling through to legacy
+	// role-only resolution. The docker call fails in CI, but the structured
+	// error payload still echoes the request, proving the param parses and
+	// the handler doesn't reject the new field.
+	res, err := LogsFetch(context.Background(), json.RawMessage(
+		`{"container":"vmkit_test_nonexistent","environment_id":"00000000-0000-0000-0000-000000000000"}`,
+	))
+	if err != nil {
+		t.Fatalf("expected nil error, got %v", err)
+	}
+	r := res.(logsFetchResult)
+	if r.Error == "" {
+		t.Error("expected docker-error payload from the nonexistent container")
+	}
+}
+
 func TestLogsFetchTailClamp(t *testing.T) {
 	// tail above maxLogsTail is clamped; tail <= 0 falls back to the default.
 	// The docker call fails in CI, but the clamped tail is echoed in the result.
