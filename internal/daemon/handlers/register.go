@@ -13,4 +13,5 @@ func RegisterAll(d *daemon.Daemon) {
 	d.RegisterHandler("creds.rotate", CredsRotate)
 	d.RegisterHandler("logs.fetch", LogsFetch)
 	d.RegisterHandler("metrics.collect", MetricsCollect)
+	d.RegisterHandler("containers.stop", ContainersStop)
 }
