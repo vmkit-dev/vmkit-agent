@@ -1,0 +1,6 @@
+bin/
+coverage.out
+coverage.html
+.coverage
+cmd/vmkit-agent/supabyoi-agent*
+vmkit-agent-linux-*

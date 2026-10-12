@@ -1,73 +1,99 @@
-# Supabyoi Agent
+# vmkit-agent
 
-A Go-based deployment agent that runs on VMs to handle Supabase instance deployments.
+The on-VM agent for [VMKit](https://vmkit.dev). A single static Go binary that runs on each
+customer VM, keeps an outbound connection to the VMKit control plane, and executes
+host-level operations on its behalf: hardening, firewall changes, diagnostics, log and
+metric collection, container lifecycle, and its own upgrades.
 
-## Overview
+It also works as a one-shot CLI: each subcommand reads a JSON config file and prints a JSON
+result, so the same operations can be driven over SSH.
 
-The Supabyoi Agent is a self-contained CLI binary that eliminates shell escaping issues and permission problems associated with Python SSH command execution. It provides idempotent operations with structured JSON output.
+## Why a pull-based agent
 
-## Architecture
+The VM dials out; the control plane never needs inbound SSH or an open management port.
+
+- **Outbound WebSocket, JSON-RPC 2.0.** `vmkit-agent daemon` connects to the gateway and
+  serves requests over a single long-lived socket.
+- **Token rotation.** The first connection authenticates with a single-use bootstrap token
+  (`/etc/vmkit/token`). The gateway's welcome message returns a session token, which the
+  agent persists (`/etc/vmkit/session`) and uses from then on.
+- **Reconnect with backoff.** Dropped connections retry with exponential backoff from 1s,
+  capped at 60s. A heartbeat loop runs at the interval the gateway assigns.
+- **No dependencies on the host.** One binary, two Go module dependencies
+  (`gorilla/websocket`, `x/sync`), built for linux/amd64 and linux/arm64.
 
 ```
-agent/
-├── cmd/vmkit-agent/    # CLI entry point
-├── internal/              # Core packages
-│   ├── config/           # Configuration loading
-│   ├── deploy/           # Deployment orchestration
-│   ├── docker/           # Docker installation & management
-│   ├── nginx/            # Nginx installation & configuration
-│   └── tls/              # TLS certificate provisioning
-└── pkg/types/            # Shared types
+vmkit-agent daemon \
+  --gateway-url wss://gateway.vmkit.dev/agent \
+  --instance-id <uuid> \
+  --token-file /etc/vmkit/token
 ```
+
+## RPC methods (daemon mode)
+
+| Method | What it does |
+|---|---|
+| `health.check` | Liveness and basic host health |
+| `vm.harden` | SSH, firewall and fail2ban hardening (see below) |
+| `vm.openport` | Open a UFW port, optionally restricted to source IPs |
+| `vm.diagnose` | Host and container diagnostics |
+| `vm.upgrade` | Download a newer agent release, swap the binary atomically, and restart via systemd after replying |
+| `tls.issue` | Issue a TLS certificate |
+| `creds.rotate` | Rotate service credentials |
+| `logs.fetch` | Tail container logs |
+| `metrics.collect` | Host and container metrics |
+| `containers.stop` | Stop and remove an environment's containers |
+| `kamal.deploy` | Dormant; see Status |
+
+Registration lives in `internal/daemon/handlers/register.go`.
+
+## Hardening safety
+
+`vm.harden` / `vmkit-agent harden` changes SSH and firewall settings on a live machine, so a
+mistake can lock everyone out. `internal/harden/harden.go` guards against that:
+
+- pre-flight checks before touching anything,
+- an SSH connectivity re-test after the SSH changes, with automatic rollback if it fails,
+- an emergency rollback script written to the VM for manual recovery.
+
+## CLI mode
+
+```
+vmkit-agent <command> --config <file.json>
+```
+
+Commands include `harden`, `diagnose`, `health`, `open-port`, `update-allowlist`,
+`backup`, `restore`, `verify`, `rotate-credentials` and `reset-vm`. Run `vmkit-agent` with
+no arguments for the full list. Request and response shapes are JSON Schemas in
+`schemas/`, with examples in `test-fixtures/`.
 
 ## Building
 
 ```bash
-# Build for current OS
-make build
-
-# Build for Linux (production)
-make build-linux
-
-# Run tests
+make build          # current OS -> bin/vmkit-agent
+make build-linux    # bin/vmkit-agent-linux-{amd64,arm64}
 make test
-
-# Check test coverage
-make coverage
 ```
 
-## Testing
+The version is stamped from `git describe --tags`. Pushing a `v*` tag runs
+`.github/workflows/release.yml`, which tests, builds both architectures, and attaches the
+binaries to the matching GitHub release.
 
-### Running Tests
+## Status
 
-```bash
-# Run all tests
-go test ./...
+This agent began as the deploy agent for Supabyoi (managed self-hosted Supabase) and was
+seeded into VMKit on 2026-05-15. The daemon, hardening, firewall, diagnostics, logs,
+metrics and self-upgrade paths are used by VMKit. Some packages still carry
+Supabase-specific assumptions and are not on VMKit's deploy path:
 
-# Run tests with coverage
-go test -cover ./...
+- `internal/deploy/` (Docker Compose orchestration behind `kamal.deploy`). VMKit deploys
+  run `kamal deploy` from GitHub Actions instead.
+- `internal/backup/` (including restore and verify), `internal/destroy/`,
+  `internal/resetvm/`, `internal/compose/`, `internal/rotatecreds/` and `internal/upgrade/`,
+  which reference Supabase service and volume names.
 
-# Generate coverage report
-go test -coverprofile=coverage.out ./...
-go tool cover -html=coverage.out -o coverage.html
-```
+`TODO.md` tracks generalizing these.
 
-### Test Coverage
+## License
 
-Current coverage: **45.8%** (target: >70%)
-
-By package:
-- internal/config: 100%
-- internal/tls: 100%
-- internal/deploy: 76.7%
-- cmd/vmkit-agent: 50.0%
-- internal/docker: 37.9%
-- internal/nginx: 33.3%
-
-### CI Integration
-
-Tests run automatically on GitHub Actions (`.github/workflows/agent-tests.yml`):
-- Unit tests on every push
-- Coverage reporting
-- Integration tests with Docker/Nginx
-- Binary build verification
+Apache-2.0. See [LICENSE](LICENSE).
